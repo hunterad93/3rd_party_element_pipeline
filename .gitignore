@@ -1,0 +1,11 @@
+*.csv
+*.jsonl
+*.db
+__pycache__/
+*.py[cod]
+*$py.class
+*.manifest
+*.spec
+*.sqbpro
+.DS_Store
+*.txt
