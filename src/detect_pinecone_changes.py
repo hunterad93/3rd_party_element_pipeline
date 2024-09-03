@@ -8,7 +8,7 @@ from tqdm import tqdm
 # Load environment variables and initialize clients
 load_dotenv('/Users/adamhunter/miniconda3/envs/ragdev/ragdev.env')
 pc = Pinecone(api_key=os.environ.get('PINECONE_API_KEY'))
-index = pc.Index("3rd-party-data-v2")
+index = pc.Index("3rd-party-data-v3")
 
 JSONL_FILE_PATH = "/Users/adamhunter/Documents/3rd_party_element_pipeline/data/jsonl/pinecone_data.jsonl"
 OUTPUT_CSV_PATH = "/Users/adamhunter/Documents/3rd_party_element_pipeline/data/csv/pinecone_changes_needed.csv"
@@ -27,22 +27,26 @@ def fetch_pinecone_data(id_list):
 
 def compare_data(local_item, pinecone_item):
     if not pinecone_item:
-        return "add"  # Item doesn't exist in Pinecone, needs to be added
+        return "add", ["all"]  # Item doesn't exist in Pinecone, needs to be added
 
     local_metadata = {k: str(v) for k, v in local_item.items() if k != 'ThirdPartyDataId'}
     pinecone_metadata = pinecone_item['metadata']
 
+    different_keys = []
+
     # Compare 'raw_string'
     local_raw_string = f"Full Path: {local_item['FullPath']}, Description: {local_item['Description']}"
     if local_raw_string != pinecone_metadata.get('raw_string', ''):
-        return "update"
+        different_keys.append('raw_string')
 
     # Compare other metadata fields
     for key, value in local_metadata.items():
         if key not in pinecone_metadata or str(pinecone_metadata[key]) != value:
-            return "update"
+            different_keys.append(key)
 
-    return None  # No changes needed
+    if different_keys:
+        return "update", different_keys
+    return None, []  # No changes needed
 
 def find_and_write_changes(local_data, csv_writer, batch_size=BATCH_SIZE):
     changes_count = 0
@@ -54,9 +58,9 @@ def find_and_write_changes(local_data, csv_writer, batch_size=BATCH_SIZE):
         for id in batch_ids:
             local_item = local_data[id]
             pinecone_item = pinecone_batch['vectors'].get(id)
-            action = compare_data(local_item, pinecone_item)
+            action, different_keys = compare_data(local_item, pinecone_item)
             if action:
-                batch_changes.append((id, action))
+                batch_changes.append((id, action, ','.join(different_keys)))
                 changes_count += 1
 
         # Write batch changes to CSV
@@ -86,7 +90,7 @@ def main():
     # Clear existing CSV file
     with open(OUTPUT_CSV_PATH, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['ID', 'Action'])
+        writer.writerow(['ID', 'Action', 'Different Keys'])
 
     local_data = load_local_data(JSONL_FILE_PATH)
     print(f"Loaded {len(local_data)} items from local JSONL file")
@@ -106,7 +110,7 @@ def main():
         writer = csv.writer(csvfile)
         for id in tqdm(pinecone_ids, desc="Checking for deletions"):
             if id not in local_data:
-                writer.writerow([id, "delete"])
+                writer.writerow([id, "delete", "all"])
                 delete_count += 1
 
     print(f"Added {delete_count} delete actions")
@@ -121,7 +125,7 @@ def main():
         for i, row in enumerate(reader):
             if i >= 10:
                 break
-            print(f"ID: {row[0]}, Action: {row[1]}")
+            print(f"ID: {row[0]}, Action: {row[1]}, Different Keys: {row[2]}")
 
 if __name__ == "__main__":
     main()

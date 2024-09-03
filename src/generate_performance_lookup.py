@@ -188,56 +188,25 @@ if __name__ == "__main__":
     categorizations_file = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/csv/categorizations.csv'
     output_db = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/sql/element_performance.db'
     table_name = 'advertiser_vertical_lookup'
-    advertiser_file = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/csv/advertiser_names.txt'
     output_csv = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/csv/advertiser_vertical_lookup.csv'
 
-    # Try to read advertiser names from file, fall back to API call if file not found
-    if os.path.exists(advertiser_file):
-        with open(advertiser_file, 'r') as f:
-            advertiser_names = set(f.read().splitlines())
-        logging.info(f"Read {len(advertiser_names)} advertiser names from file")
-    else:
-        # Get authentication token
-        token = get_auth_token()
+    # Get authentication token
+    token = get_auth_token()
 
-        # Get all advertiser names
-        advertiser_names = get_all_advertiser_names(token, PARTNER_ID)
-        logging.info(f"Retrieved {len(advertiser_names)} advertiser names from API")
-
-        # Save advertiser names to file
-        with open(advertiser_file, 'w') as f:
-            f.write('\n'.join(advertiser_names))
-        logging.info(f"Saved {len(advertiser_names)} advertiser names to file")
+    # Get all advertiser names
+    advertiser_names = get_all_advertiser_names(token, PARTNER_ID)
+    logging.info(f"Retrieved {len(advertiser_names)} advertiser names from API")
 
     # Load categorizations
     df_categorizations = load_categorizations(categorizations_file)
 
-    # Try to load existing vertical mapping
-    df_matched = load_vertical_mapping(output_csv)
-
-    if df_matched is None:
-        # If no existing mapping, create a new one
-        logging.info("No existing vertical mapping found. Creating new mapping.")
-        df_matched = create_vertical_mapping(advertiser_names, df_categorizations)
-        
-        # Save df_matched as CSV
-        df_matched.to_csv(output_csv, index=False)
-        logging.info(f"Saved new vertical mapping to CSV: {output_csv}")
-    else:
-        # Check for new advertisers not in the existing mapping
-        existing_advertisers = set(df_matched['Advertiser'])
-        new_advertisers = advertiser_names - existing_advertisers
-        
-        if new_advertisers:
-            logging.info(f"Found {len(new_advertisers)} new advertisers. Updating vertical mapping.")
-            new_mappings = create_vertical_mapping(new_advertisers, df_categorizations)
-            df_matched = pd.concat([df_matched, new_mappings], ignore_index=True)
-            
-            # Save updated df_matched as CSV
-            df_matched.to_csv(output_csv, index=False)
-            logging.info(f"Saved updated vertical mapping to CSV: {output_csv}")
-        else:
-            logging.info("No new advertisers found. Using existing vertical mapping.")
+    # Create vertical mapping
+    logging.info("Creating vertical mapping for all advertisers.")
+    df_matched = create_vertical_mapping(advertiser_names, df_categorizations)
+    
+    # Save df_matched as CSV
+    df_matched.to_csv(output_csv, index=False)
+    logging.info(f"Saved vertical mapping to CSV: {output_csv}")
 
     # Save to SQLite database
     try:

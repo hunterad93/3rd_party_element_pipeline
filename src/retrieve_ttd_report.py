@@ -106,7 +106,7 @@ if __name__ == "__main__":
             
             # Prepare filename for download
             report_name = most_recent_report['ReportScheduleName'].replace(' ', '_')
-            report_date = most_recent_report['ReportStartDateInclusive'].split('T')[0]
+            report_date = most_recent_report['ReportEndDateExclusive'].split('T')[0]
             filename = os.path.join(DOWNLOAD_DIR, f"{report_name}_{report_date}.csv")
             
             # Ensure the download directory exists

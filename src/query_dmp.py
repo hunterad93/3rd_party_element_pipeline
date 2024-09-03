@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from requests.exceptions import RequestException
 from datetime import datetime
 import random
+import sys
 
 ##############################################################################################
 # This script takes any valid pathlabs advertiser id as input, downloads all available brands,     
@@ -143,6 +144,17 @@ if __name__ == "__main__":
     output_dir = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/jsonl'
     os.makedirs(output_dir, exist_ok=True)
 
+    # Generate filename with new timestamp format
+    timestamp = datetime.now().strftime("%Y-%m-%d")
+    output_file = os.path.join(output_dir, f'3rd_party_dmp_{timestamp}.jsonl')
+
+    # Check if file already exists
+    if os.path.exists(output_file):
+        error_message = f"Error: File '{output_file}' already exists for today's date. Please remove or rename the existing file before running the script again."
+        logging.error(error_message)
+        print(error_message, file=sys.stderr)
+        sys.exit(1)
+
     # Get authentication token
     token = get_auth_token()
 
@@ -164,9 +176,6 @@ if __name__ == "__main__":
     available_brands = get_available_brands(advertiser_id, token)
     logging.info(f"Retrieved {len(available_brands)} available brands for AdvertiserId: {advertiser_id}")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = os.path.join(output_dir, f'3rd_party_dmp_{timestamp}.jsonl')
-        
     # Process brand IDs in batches of 10
     for i in range(0, len(available_brands), 10):
         brand_id_batch = available_brands[i:i+10]

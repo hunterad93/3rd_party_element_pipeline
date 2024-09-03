@@ -10,10 +10,9 @@ def get_recent_csv_files(folder_path, months=6):
     six_months_ago = today - timedelta(days=30*months)
     
     csv_files = glob.glob(os.path.join(folder_path, 'ai_element_performance_*.csv'))
-    print(csv_files)
     recent_files = [
         file for file in csv_files
-        if datetime.strptime(os.path.basename(file).split('_')[3].split('.')[0], '%Y%m%d') >= six_months_ago
+        if datetime.strptime(os.path.basename(file).split('_')[3].split('.')[0], '%Y-%m-%d') >= six_months_ago
     ]
     
     return sorted(recent_files, reverse=True)
@@ -44,10 +43,31 @@ def process_csv_files(file_list, db_path, table_name):
     
     conn.close()
 
+def remove_old_csv_files(folder_path, months=12):
+    """Remove CSV files older than 12 months."""
+    today = datetime.now()
+    cutoff_date = today - timedelta(days=30*months)
+    
+    csv_files = glob.glob(os.path.join(folder_path, 'ai_element_performance_*.csv'))
+    removed_count = 0
+    
+    for file in csv_files:
+        file_date = datetime.strptime(os.path.basename(file).split('_')[3].split('.')[0], '%Y-%m-%d')
+        if file_date < cutoff_date:
+            os.remove(file)
+            removed_count += 1
+            print(f"Removed old file: {file}")
+    
+    return removed_count
+
 if __name__ == "__main__":
     input_folder = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/csv/ai_element_performance/'
     output_db = '/Users/adamhunter/Documents/3rd_party_element_pipeline/data/sql/element_performance.db'
     table_name = 'report_stack'
+
+    # Remove old CSV files
+    removed_files = remove_old_csv_files(input_folder)
+    print(f"Removed {removed_files} CSV files older than 12 months.")
 
     recent_files = get_recent_csv_files(input_folder)
     print(f"Found {len(recent_files)} CSV files from the last 6 months.")
