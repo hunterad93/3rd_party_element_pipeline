@@ -36,7 +36,7 @@ def load_changes_from_csv(file_path):
 
 def create_chunk(data):
     raw_string = f"Full Path: {data['FullPath']}, Description: {data['Description']}"
-    metadata = {k: str(v) for k, v in data.items() if k != 'ThirdPartyDataId'}
+    metadata = {k: v for k, v in data.items() if k != 'ThirdPartyDataId'}
     metadata['raw_string'] = raw_string
     return {
         "id": data['ThirdPartyDataId'],
@@ -92,6 +92,21 @@ def apply_changes(local_data, changes, batch_size, limit):
         response = index.delete(ids=batch)
         print(response)
 
+def print_sample_changed_records(changes, sample_size):
+    print(f"\nSample of {sample_size} changed records:")
+    sample_ids = list(changes.keys())[:sample_size]
+    
+    for id in sample_ids:
+        vector = index.fetch(ids=[id])
+        if vector:
+            print(f"ID: {id}")
+            print(f"Action: {changes[id]}")
+            print(f"Metadata: {vector['vectors'][id]['metadata']}")
+            print("---")
+        else:
+            print(f"ID: {id} - Not found in index (possibly deleted)")
+            print("---")
+
 # In the main function, call apply_changes with a limit:
 def main():
     local_data = load_local_data(JSONL_FILE_PATH)
@@ -101,8 +116,9 @@ def main():
     print(f"Loaded {len(changes)} changes from CSV file")
 
     # Set a limit for testing, e.g., 100 records
-    apply_changes(local_data, changes, batch_size=BATCH_SIZE, limit=BATCH_SIZE)
+    apply_changes(local_data, changes, batch_size=BATCH_SIZE, limit=None)
     print("Changes applied to Pinecone database")
+    print_sample_changed_records(changes, 10)
 
 if __name__ == "__main__":
     main()
